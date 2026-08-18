@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import natsort
+from cloudpathlib import AnyPath
 
 from .. import __version__
 from ..config import Config
@@ -216,15 +217,18 @@ class MztabWriter:
             The input peak file name(s).
         """
         for i, filename in enumerate(natsort.natsorted(peak_filenames), 1):
-            filename = os.path.abspath(filename)
+            # Key the run map by the full path, matching the peak file
+            # string stored by depthcharge. Using only the file name
+            # collides when files share a name across directories.
+            run_key = str(AnyPath(filename))
+            location = os.path.abspath(filename)
             self.metadata.append(
-                (f"ms_run[{i}]-location", Path(filename).as_uri()),
+                (f"ms_run[{i}]-location", Path(location).as_uri()),
             )
-            self._run_map[Path(filename).name] = i
+            self._run_map[run_key] = i
             if Path(filename).suffix.lower() == ".mgf":
-                name = Path(filename).name
                 for ref_id, scan_num in _build_mgf_scan_index(filename):
-                    self._mgf_scan_index[(name, ref_id)] = scan_num
+                    self._mgf_scan_index[(run_key, ref_id)] = scan_num
 
     def save(self) -> None:
         """

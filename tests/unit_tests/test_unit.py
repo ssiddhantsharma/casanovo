@@ -2222,6 +2222,22 @@ def test_run_map(mgf_small):
     assert os.path.abspath(mgf_small.name) not in out_writer._run_map
 
 
+def test_run_map_distinct_paths(tmp_path):
+    """Peak files sharing a name in different directories map to
+    distinct runs."""
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    f1, f2 = tmp_path / "a" / "spectra.mgf", tmp_path / "b" / "spectra.mgf"
+    f1.touch()
+    f2.touch()
+    writer = ms_io.MztabWriter("dummy.mztab")
+    writer.set_ms_run([str(f1), str(f2)])
+    assert str(f1) in writer._run_map
+    assert str(f2) in writer._run_map
+    assert writer._run_map[str(f1)] != writer._run_map[str(f2)]
+    assert len(writer._run_map) == 2
+
+
 def test_set_database(tmp_path):
     """Test that set_database populates PSM database columns."""
     fasta = tmp_path / "test.fasta"

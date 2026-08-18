@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Fixed the mass of the carbamylation + ammonia-loss N-terminal token to `25.979265`. The token name is deliberately left as `[+25.980265]-` because it appears in released checkpoint vocabularies.
+- The mzTab run map is keyed by the full peak file path instead of only the file name, which previously caused incorrect run references for peak files that share a name across directories.
 
 ### Removed
 
