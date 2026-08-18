@@ -779,6 +779,16 @@ def test_get_weights_from_url(monkeypatch):
         cache_file_dir = cache_dir / url_hash
         cache_file_path = cache_file_dir / cache_file_name
 
+        # Age the cache beyond the TTL so the upstream Last-Modified time
+        # is checked (a recent cache skips the check). Two days is older
+        # than the TTL but newer than the +/-365 day upstream times below.
+        stale = (
+            datetime.datetime.now() - datetime.timedelta(days=2)
+        ).timestamp()
+
+        def make_stale():
+            os.utime(cache_file_path, (stale, stale))
+
         # Test downloading and caching the file
         assert not cache_file_path.is_file()
         result_path = casanovo._get_weights_from_url(file_url, cache_dir)
@@ -787,7 +797,14 @@ def test_get_weights_from_url(monkeypatch):
         assert mock_get.request_counter == 1
         assert mock_get.timeouts == [casanovo._MODEL_WEIGHT_REQUEST_TIMEOUT]
 
-        # Test that cached file is used
+        # Test that a recent cached file is used without a network request
+        result_path = casanovo._get_weights_from_url(file_url, cache_dir)
+        assert result_path.resolve() == cache_file_path.resolve()
+        assert mock_get.request_counter == 1
+        assert mock_head.timeouts == []
+
+        # Once older than the TTL, the upstream Last-Modified is checked
+        make_stale()
         result_path = casanovo._get_weights_from_url(file_url, cache_dir)
         assert result_path.resolve() == cache_file_path.resolve()
         assert mock_get.request_counter == 1
@@ -804,6 +821,7 @@ def test_get_weights_from_url(monkeypatch):
         # Test that file is re-downloaded if last modified is newer than
         # file last modified
         # NOTE: Assuming test takes < 1 year to run
+        make_stale()
         curr_utc = datetime.datetime.now().astimezone(datetime.timezone.utc)
         mock_head.last_modified = (
             curr_utc + datetime.timedelta(days=365.0)
@@ -813,6 +831,7 @@ def test_get_weights_from_url(monkeypatch):
         assert mock_get.request_counter == 3
 
         # Test file is not redownloaded if its newer than upstream file
+        make_stale()
         mock_head.last_modified = (
             curr_utc - datetime.timedelta(days=365.0)
         ).strftime("%a, %d %b %Y %H:%M:%S GMT")
@@ -831,6 +850,7 @@ def test_get_weights_from_url(monkeypatch):
 
         # Test that cached file is used if head requests yields non-ok status
         # code, even if upstream file is newer
+        make_stale()
         mock_head.is_ok = False
         mock_head.last_modified = (
             curr_utc + datetime.timedelta(days=365.0)
@@ -841,6 +861,7 @@ def test_get_weights_from_url(monkeypatch):
         mock_head.is_ok = True
 
         # Test that cached file is used if head request fails
+        make_stale()
         mock_head.fail = True
         result_path = casanovo._get_weights_from_url(file_url, cache_dir)
         assert result_path.resolve() == cache_file_path.resolve()

@@ -48,6 +48,7 @@ click.rich_click.STYLE_HELPTEXT = ""
 click.rich_click.SHOW_ARGUMENTS = True
 
 _MODEL_WEIGHT_REQUEST_TIMEOUT = 30
+_MODEL_WEIGHT_CACHE_TTL = 24 * 60 * 60
 
 
 class _SharedFileIOParams(click.RichCommand):
@@ -952,6 +953,12 @@ def _get_weights_from_url(
 
     if cache_file_path.is_file() and not force_download:
         cache_time = cache_file_path.stat()
+        cache_age = time.time() - cache_time.st_mtime
+        if cache_age < _MODEL_WEIGHT_CACHE_TTL:
+            logger.info(
+                "Model weights %s retrieved from local cache", file_url
+            )
+            return cache_file_path
         url_last_modified = 0
 
         try:

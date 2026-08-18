@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 
 - `val_check_interval` now accepts a float in `[0, 1]` to validate at a fraction of each training epoch, in addition to an integer number of training steps.
+- Model weights cached from a URL are now reused without a network request while the cached file is less than 24 hours old, before re-checking the upstream `Last-Modified` time.
 
 ### Fixed
 
